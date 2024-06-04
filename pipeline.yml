@@ -1,0 +1,84 @@
+    variables:
+    - name: OctoProject
+      value: #
+    - name: BicepFileName
+      value: #
+    
+    trigger:
+      branches:
+        include:
+        - main
+      batch: 'true'
+    
+    stages:
+    - stage: build
+      jobs:
+      - job: Job_1
+        displayName: Build
+        pool:
+          name: #
+        workspace:
+          clean: all
+        steps:
+        - checkout: self
+          persistCredentials: 'true'
+          fetchTags: 'true'
+          fetchDepth: 0
+    
+        - task: gittools.gitversion.gitversion-task.GitVersion@5
+          displayName: GitVersion
+          inputs:
+            configFilePath: gitversion.yml
+            outputVariable: $(version)
+    
+        - task: DotNetCoreCLI@2
+          displayName: 'dotnet publish'
+          inputs:
+            command: publish
+            arguments: '--output pub'
+            zipAfterPublish: false
+            modifyOutputPath: false
+    
+        - powershell: bicep build ./BicepFileName.bicep --outfile ./pub/BicepFileName.json
+          displayName: Bicep Build
+    
+        - powershell: Get-ChildItem .\pub -Recurse -Include 'appsettings.Development.json' | Remove-Item -Force
+          displayName: Clear Dev Files
+    
+        - task: octopusdeploy.octopus-deploy-build-release-tasks.octo-installer.OctoInstaller@4
+          displayName: 'Use Octopus CLI tools'
+    
+        - task: octopusdeploy.octopus-deploy-build-release-tasks.octopus-cli.OctoCli@4
+          displayName: 'Octopack'
+          inputs:
+            OctoConnectedServiceName: 'Octopus Deploy-ConnectedService'
+            command: pack
+            Include: '!appsettings.Development.json'
+            args: '--id=$(OctoProject) --format=NuPkg --version=$(GitVersion.MajorMinorPatch) --outFolder=$(Build.ArtifactStagingDirectory) --basePath=$(System.DefaultWorkingDirectory)/pub'
+            
+    
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish artifacts'
+          inputs:
+            targetPath: $(Build.ArtifactStagingDirectory)
+            artifactName: drop
+          
+    - stage: push_packages
+      variables:
+        applicationsNuGetFeed: #
+      jobs:
+      - job: push_packages_job
+        displayName: Push Packages
+        pool:
+          name: #
+        steps:
+        - task: DownloadPipelineArtifact@2
+          inputs:
+            source: current
+            artifact: drop
+            path: $(Build.ArtifactStagingDirectory)
+        - task: NuGetCommand@2
+          displayName: Push Application to ProGet
+          inputs:
+            command: custom
+            arguments: push $(Build.ArtifactStagingDirectory)\*.nupkg -Source $(applicationsNuGetFeed) -SkipDuplicate

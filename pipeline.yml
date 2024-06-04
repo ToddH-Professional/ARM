@@ -38,8 +38,8 @@
             arguments: '--output pub'
             zipAfterPublish: false
             modifyOutputPath: false
-    
-        - powershell: bicep build ./BicepFileName.bicep --outfile ./pub/BicepFileName.json
+    #Replace filename andm json with your filename.  Paramaterizing this filename may cause errors.  
+        - powershell: bicep build ./$(BicepFileName).bicep --outfile ./pub/$(BicepFileName).json
           displayName: Bicep Build
     
         - powershell: Get-ChildItem .\pub -Recurse -Include 'appsettings.Development.json' | Remove-Item -Force

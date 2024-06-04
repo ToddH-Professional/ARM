@@ -1,10 +1,16 @@
-﻿param appServicePlanName string // This App Service Plan must be in the App Service Environments.
-param appServicePlanResourceGroupname string
-param location string = resourceGroup().location  // Typically leave this to this default value.
+﻿// This App Service Plan must be in the App Service Environments.
+param appServicePlanName string
+//Resource Group for app
+param appServicePlanResourceGroupname string  
+// Typically leave this to this default value.
+param location string = resourceGroup().location  
 
-var appServiceName = '' // This becomes the first part in your url. It must be unique among all other apps that exist in the App Service Environment.
+// This becomes the first part in your url. It must be unique among all other apps that exist in the App Service Environment.
+@description('The name of the app service.  Must be unique')
+var appServiceName = '' 
 var appServicePlan = resourceId(appServicePlanResourceGroupname, 'Microsoft.Web/serverfarms', appServicePlanName)
 
+//Makes the WebApp
 resource WebApp 'Microsoft.Web/sites@2021-03-01' = {
   name: appServiceName
   location: location
